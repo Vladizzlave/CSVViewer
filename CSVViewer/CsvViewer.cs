@@ -9,6 +9,15 @@ namespace CSVViewer
     {
         static void Main(string[] args)
         {
+            CSVToHTML app = new CSVToHTML();
+            app.Run();
+        }
+    }
+
+    class CSVToHTML
+    {
+        public void Run()
+        {
             Console.WriteLine("Введите путь к CSV файлу:");
             string filePath = Console.ReadLine();
 
@@ -21,15 +30,20 @@ namespace CSVViewer
 
             // Чтение и валидация файла
             Validator validator = new Validator();
-            List<string[]> rows = validator.ValidateAndLoadFile(filePath);
-            if (rows == null)
+            ReadCSV reader = new ReadCSV();
+
+            if (!validator.ValidateFile(filePath))
             {
-                Console.WriteLine("Ошибка при обработке CSV файла.");
+                Console.WriteLine("Ошибка при проверке CSV файла.");
                 return;
             }
 
-            string[] headers = rows[0]; // Первая строка — заголовки
-            rows.RemoveAt(0); // Удаляем заголовки из списка строк
+            var (headers, rows) = reader.LoadCSV(filePath);
+            if (headers == null || rows == null)
+            {
+                Console.WriteLine("Ошибка при чтении CSV файла.");
+                return;
+            }
 
             // Настройка стилей
             HtmlWriter writer = new HtmlWriter();
@@ -66,9 +80,9 @@ namespace CSVViewer
         }
     }
 
-    class Validator
+    class ReadCSV
     {
-        public List<string[]> ValidateAndLoadFile(string filePath)
+        public (string[] headers, List<string[]> rows) LoadCSV(string filePath)
         {
             try
             {
@@ -76,34 +90,24 @@ namespace CSVViewer
                 if (lines.Length == 0)
                 {
                     Console.WriteLine("Файл пуст.");
-                    return null;
+                    return (null, null);
                 }
 
                 var headers = lines[0].Split(';');
-                if (headers.Length == 0)
-                {
-                    Console.WriteLine("Отсутствуют заголовки.");
-                    return null;
-                }
-
                 var rows = new List<string[]>();
-                foreach (var line in lines)
+
+                for (int i = 1; i < lines.Length; i++)
                 {
-                    var values = line.Split(';');
-                    if (values.Length != headers.Length)
-                    {
-                        Console.WriteLine($"Ошибка: строка '{line}' не соответствует структуре заголовков.");
-                        return null;
-                    }
+                    var values = lines[i].Split(';');
                     rows.Add(values);
                 }
 
-                return rows;
+                return (headers, rows);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Ошибка при чтении файла: {ex.Message}");
-                return null;
+                Console.WriteLine("Ошибка чтения файла.");
+                return (null, null);
             }
         }
     }
@@ -127,7 +131,7 @@ namespace CSVViewer
             sb.AppendLine("<!DOCTYPE html>");
             sb.AppendLine("<html>");
             sb.AppendLine("<head>");
-            sb.AppendLine("<style>");
+            sb.AppendLine ("<style>");
             sb.AppendLine($"table {{ font-family: {font}; font-size: {fontSize}px; color: {color}; border-collapse: collapse; width: 100%; }}");
             sb.AppendLine("th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }");
             sb.AppendLine("tr:nth-child(even) { background-color: #f2f2f2; }");
@@ -165,6 +169,46 @@ namespace CSVViewer
         public void SaveHtml(string filePath, string content)
         {
             File.WriteAllText(filePath, content, Encoding.UTF8);
+        }
+    }
+
+    class Validator
+    {
+        public bool ValidateFile(string filePath)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(filePath);
+                if (lines.Length == 0)
+                {
+                    Console.WriteLine("Файл пуст.");
+                    return false;
+                }
+
+                var headers = lines[0].Split(';');
+                if (headers.Length == 0)
+                {
+                    Console.WriteLine("Отсутствуют заголовки.");
+                    return false;
+                }
+
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    var values = lines[i].Split(';');
+                    if (values.Length != headers.Length)
+                    {
+                        Console.WriteLine($"Ошибка в строке {i + 1}: количество значений не соответствует заголовкам.");
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при проверке файла: {ex.Message}");
+                return false;
+            }
         }
     }
 }
