@@ -27,6 +27,11 @@ class Validator
                     Console.WriteLine($"Ошибка в строке {i + 1}: количество значений не соответствует заголовкам.");
                     return false;
                 }
+            if (Array.Exists(values, string.IsNullOrWhiteSpace))
+                {
+                    Console.WriteLine($"Ошибка в строке{i+1}: обнаружены пустые столбцы ");
+                    return false;
+                }
             }
 
             return true;
